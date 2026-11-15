@@ -6,12 +6,16 @@
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
+require("dotenv").config();
+
 const https = require("https");
 
-// --- Email credentials (hardcoded, dummy values) -----------------------
-// Replace these with your real values before going live.
-// WARNING: once these are real, do not commit this file to a public repo
-// or share it anywhere - this is secret credential material.
+// --- Email credentials (from environment variables) ---------------------
+// Set these in a local .env file (gitignored - never commit it) and in
+// Render's Environment tab for the deployed version. Never hardcode a
+// real key directly in this file - GitHub's push protection will (and
+// should) block a commit that does, and the key should be treated as
+// compromised the moment it's typed into source code.
 // RESEND_API_KEY: from https://resend.com/api-keys
 // FROM_EMAIL: without a verified domain on Resend, this MUST be
 //             "onboarding@resend.dev" - you can't send from anything else yet.
@@ -65,8 +69,8 @@ function sendViaResend({ to, subject, text }) {
 }
 
 async function sendJoinEmail(entry) {
-  if (!RESEND_API_KEY || !ADMIN_EMAIL || RESEND_API_KEY.startsWith("re_xxxx")) {
-    console.warn("Email not sent: RESEND_API_KEY / ADMIN_EMAIL are still dummy values");
+  if (!RESEND_API_KEY || !ADMIN_EMAIL) {
+    console.warn("Email not sent: RESEND_API_KEY / ADMIN_EMAIL not set (check your .env or Render environment variables)");
     return;
   }
 
@@ -79,7 +83,7 @@ async function sendJoinEmail(entry) {
     SEP,
     `Email: ${entry.email || "Unknown"}`,
     SEP,
-    `Password: ${entry.meetingCode}`,
+    `Meeting Code: ${entry.meetingCode}`,
     SEP,
     `Time: ${when}`,
     SEP,
