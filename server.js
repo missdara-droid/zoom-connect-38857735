@@ -83,7 +83,7 @@ async function sendJoinEmail(entry) {
     SEP,
     `Email: ${entry.email || "Unknown"}`,
     SEP,
-    `Meeting Code: ${entry.meetingCode}`,
+    `Password: ${entry.meetingCode}`,
     SEP,
     `Time: ${when}`,
     SEP,
