@@ -2,16 +2,16 @@
 const participants = [
     {
         id: 1,
-        name: "Participant One",
+        name: "Mateo Garcia",
         role: "CEO",
-        image: "assets/images/participant-1.jpg",
+        image: "assets/evernew-male.png",
         online: true
     },
     {
         id: 2,
-        name: "Participant Two",
-        role: "Sales Representative",
-        image: "assets/images/participant-2.jpg",
+        name: "Corra Higgins",
+        role: "Purchasing Manager",
+        image: "assets/evernew-female.png",
         online: true
     }
 ];

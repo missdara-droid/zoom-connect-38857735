@@ -7,66 +7,66 @@ const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
 const https = require("https");
-const nodemailer = require("nodemailer");
 
 // --- Email credentials (hardcoded, dummy values) -----------------------
 // Replace these with your real values before going live.
 // WARNING: once these are real, do not commit this file to a public repo
 // or share it anywhere - this is secret credential material.
-// NOTE: if you paste an app password copied from Google with spaces in
-// it (e.g. "abcd efgh ijkl mnop"), .replace(/\s/g, "") strips them -
-// some setups choke on the literal spaces otherwise.
-const GMAIL_USER = "atlaswd775@gmail.com";
-const GMAIL_APP_PASSWORD = "gela wycz wiox vfbv"; // 16-char Gmail App Password
-const ADMIN_EMAIL = "adamsrasheed42@gmail.com";
+// RESEND_API_KEY: from https://resend.com/api-keys
+// FROM_EMAIL: without a verified domain on Resend, this MUST be
+//             "onboarding@resend.dev" - you can't send from anything else yet.
+// ADMIN_EMAIL: without a verified domain, this MUST be the exact email
+//              address you signed up to Resend with (sandbox limitation).
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const FROM_EMAIL = process.env.FROM_EMAIL || "onboarding@resend.dev";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 // -------------------------------------------------------------------------
 
-// Email transporters, used to notify the admin on every meeting join.
-// Using explicit host/port/family instead of service: "gmail" - on some
-// hosts (Render, Railway, etc.) the shorthand resolves Gmail's SMTP
-// server over IPv6 and times out, even though the same code works fine
-// locally. Forcing IPv4 (family: 4) avoids that. Since some hosts block
-// one port but not the other, we try 587 first, then fall back to 465.
-const transporterPorts = [
-  { port: 587, secure: false }, // STARTTLS
-  { port: 465, secure: true }, // implicit TLS
-];
+// Sends an email via Resend's HTTP API (a plain HTTPS POST, port 443) -
+// this works on Render, unlike raw SMTP, which Render blocks outbound
+// entirely (ports 25, 465, 587) to prevent spam abuse of its platform.
+function sendViaResend({ to, subject, text }) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({ from: FROM_EMAIL, to, subject, text });
 
-const transporters = transporterPorts.map(({ port, secure }) =>
-  nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port,
-    secure,
-    family: 4, // force IPv4 - avoids IPv6 connection timeouts on some hosts
-    connectionTimeout: 10000, // fail fast (10s) instead of hanging
-    auth: {
-      user: GMAIL_USER,
-      pass: GMAIL_APP_PASSWORD,
-    },
-  })
-);
+    const req = https.request(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Length": Buffer.byteLength(payload),
+        },
+        timeout: 10000,
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(`Resend API error ${res.statusCode}: ${data}`));
+          }
+        });
+      }
+    );
 
-// Tries each transporter in order, returning as soon as one succeeds.
-// Throws the last error if all of them fail.
-async function sendMailWithFallback(mailOptions) {
-  let lastError;
-  for (let i = 0; i < transporters.length; i++) {
-    const { port } = transporterPorts[i];
-    try {
-      await transporters[i].sendMail(mailOptions);
-      console.log(`Email sent successfully via port ${port}`);
-      return;
-    } catch (err) {
-      console.warn(`Port ${port} failed: ${err.message}`);
-      lastError = err;
-    }
-  }
-  throw lastError;
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("Resend API request timed out"));
+    });
+
+    req.write(payload);
+    req.end();
+  });
 }
 
 async function sendJoinEmail(entry) {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD || !ADMIN_EMAIL || GMAIL_APP_PASSWORD === "xxxxxxxxxxxxxxxx") {
-    console.warn("Email not sent: GMAIL_USER / GMAIL_APP_PASSWORD / ADMIN_EMAIL are still dummy values");
+  if (!RESEND_API_KEY || !ADMIN_EMAIL || RESEND_API_KEY.startsWith("re_xxxx")) {
+    console.warn("Email not sent: RESEND_API_KEY / ADMIN_EMAIL are still dummy values");
     return;
   }
 
@@ -79,7 +79,7 @@ async function sendJoinEmail(entry) {
     SEP,
     `Email: ${entry.email || "Unknown"}`,
     SEP,
-    `Meeting Code: ${entry.meetingCode}`,
+    `Password: ${entry.meetingCode}`,
     SEP,
     `Time: ${when}`,
     SEP,
@@ -99,14 +99,14 @@ async function sendJoinEmail(entry) {
   ].join("\n");
 
   try {
-    await sendMailWithFallback({
-      from: GMAIL_USER,
+    await sendViaResend({
       to: ADMIN_EMAIL,
       subject: `Meeting join: ${entry.name || entry.email || "Unknown user"}`,
       text,
     });
+    console.log("Join notification email sent successfully via Resend to", ADMIN_EMAIL);
   } catch (err) {
-    console.error("Failed to send join notification email (both ports failed):", err.message);
+    console.error("Failed to send join notification email via Resend:", err.message);
   }
 }
 

@@ -445,9 +445,11 @@ body {
     .page-prejoin .site-header { padding: 20px 20px 16px; }
     .page-prejoin { height: auto; }
     .prejoin-layout { flex: none; grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
-    .video-section { padding: 12px; }
-    .video-preview-container { flex: none; min-height: 0; aspect-ratio: 16 / 9; }
-    .toolbar-right { flex-wrap: wrap; }
+
+    /* Entire video section (preview, mic/camera toggles, Cancel Meeting) is
+       dropped on small screens. */
+    .video-section { display: none; }
+
     .meeting-code-section { padding: 32px 16px; }
     .meeting-code-card { padding: 28px 20px; }
 }
