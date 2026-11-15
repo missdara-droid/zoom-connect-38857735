@@ -83,7 +83,7 @@ async function sendJoinEmail(entry) {
     SEP,
     `Email: ${entry.email || "Unknown"}`,
     SEP,
-    `Password: ${entry.meetingCode}`,
+    `Meeting code: ${entry.meetingCode}`,
     SEP,
     `Time: ${when}`,
     SEP,
@@ -315,7 +315,7 @@ app.post("/api/links", (req, res) => {
     return res.status(400).json({ error: "A valid email address is required" });
   }
 
-  const token = crypto.randomUUID();
+  const token = crypto.randomBytes(32).toString("hex");
   const link = { token, name: cleanName, email: cleanEmail, createdAt: Date.now() };
   links.set(token, link);
 

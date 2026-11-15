@@ -10,7 +10,7 @@ const participants = [
     {
         id: 2,
         name: "Corra Higgins",
-        role: "Purchasing Manager",
+        role: "Sales Representative",
         image: "assets/evernew-female.png",
         online: true
     }
@@ -71,7 +71,7 @@ function updateCounts() {
 function handleJoinMeeting() {
   const token = new URLSearchParams(window.location.search).get("token");
   const query = token ? "?token=" + encodeURIComponent(token) : "";
-  window.location.href = "page2.html" + query;
+  window.location.href = "join.html" + query;
 }
 
 joinButton.addEventListener("click", handleJoinMeeting);
