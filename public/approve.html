@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Approve sign in request</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+<main>
+  <section class="dialog tall" aria-labelledby="atitle">
+    <a class="brand" href="account-picker.html" aria-label="Northwind, back to account selection">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="13" height="13" fill="#E5533D"/><rect x="16" y="1" width="13" height="13" fill="#4CAF50"/><rect x="1" y="16" width="13" height="13" fill="#2F80ED"/><rect x="16" y="16" width="13" height="13" fill="#F2B01E"/></svg>
+      <span>Northwind</span>
+    </a>
+    <p class="acct" id="acct">user@company.com</p>
+    <h1 id="atitle" class="ah">Approve sign in request</h1>
+    <div class="instr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8 4.5 5.8v5.7c0 4.6 3 8.2 7.5 9.7 4.5-1.5 7.5-5.1 7.5-9.7V5.8z"/><path d="m8.8 12 2.4 2.4 4.2-4.6"/></svg>
+      <p>Open your Authenticator app and approve the request. Enter the number if prompted.</p>
+    </div>
+    <div class="num" id="num" aria-label="Verification number">46</div>
+    <p class="help">Didn’t receive a sign-in request? <strong>Swipe down to refresh</strong> the content in your app.</p>
+    <a class="lnk first" href="#cant-use">I can’t use my Authenticator app right now</a>
+    <a class="lnk" href="#more-info">More information</a>
+  </section>
+</main>
+<footer>
+  <a href="#terms">Terms of use</a>
+  <a href="#privacy">Privacy &amp; cookies</a>
+  <button type="button" aria-label="More options">&hellip;</button>
+</footer>
+<script>
+(function(){
+  // Account shown comes from ?account=… on the URL (set by account-picker.html).
+  var acct=new URLSearchParams(location.search).get('account');
+  if(acct) document.getElementById('acct').textContent=acct;
+  // Demo only: replace with the number issued by your authentication backend.
+  document.getElementById('num').textContent=String(10+Math.floor(Math.random()*90));
+})();
+</script>
+</body>
+</html>

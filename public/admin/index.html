@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Admin Control</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #fff;
+    color: #222;
+    max-width: 560px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  h1 { font-size: 20px; }
+  h2 { font-size: 15px; color: #555; margin-top: 30px; }
+  .session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .session-row .meta { font-size: 14px; }
+  .session-row .meta .id { font-weight: bold; }
+  .session-row .meta .status { color: #888; font-size: 12px; }
+  button {
+    cursor: pointer;
+    border: 1px solid #333;
+    background: #fff;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  button:hover { background: #f2f2f2; }
+  .empty { color: #999; font-size: 14px; }
+
+  .link-gen { display: flex; gap: 8px; flex-wrap: wrap; }
+  .link-gen input[type="text"],
+  .link-gen input[type="email"] {
+    flex: 1;
+    min-width: 160px;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .link-row {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .link-row .email { font-weight: bold; }
+  .link-row .url {
+    display: block;
+    margin-top: 4px;
+    word-break: break-all;
+    color: #333;
+    background: #f7f7f7;
+    padding: 6px 8px;
+    border-radius: 4px;
+  }
+  .link-row button { margin-top: 6px; }
+
+  .audit-row {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .audit-row .who { font-weight: bold; }
+  .audit-row .detail { color: #555; margin-top: 2px; }
+  .audit-row .flag-office { color: #1a7f37; }
+  .audit-row .flag-other { color: #b36b00; }
+  .audit-row .flag-registered { color: #1a7f37; }
+  .audit-row .flag-unrecognized { color: #c0392b; }
+
+  /* Modal / detail panel */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3);
+    align-items: center; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .panel {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    width: 300px;
+    text-align: center;
+  }
+  .panel h3 { margin-top: 0; }
+  .panel .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .panel input {
+    font-size: 20px;
+    text-align: center;
+    width: 80px;
+    padding: 6px;
+    letter-spacing: 4px;
+  }
+  .panel .error { color: #c0392b; font-size: 13px; min-height: 16px; }
+  .panel .close { margin-top: 14px; font-size: 12px; color: #888; background: none; border: none; }
+</style>
+</head>
+<body>
+  <h1>ADMIN CONTROL</h1>
+
+  <h2>Generate Account Link</h2>
+  <div class="link-gen">
+    <input type="text" id="nameInput" placeholder="Full name" />
+    <input type="email" id="emailInput" placeholder="name@example.com" />
+    <button id="btnGenerateLink">Generate Link</button>
+  </div>
+  <div class="error" id="linkError"></div>
+  <div id="linkList"></div>
+
+  <h2>Waiting Sessions</h2>
+  <div id="sessionList" class="empty">No sessions waiting.</div>
+
+  <h2>Meeting Joins (live)</h2>
+  <div id="auditList" class="empty">Listening for meeting joins... (nothing is stored - this tab must be open to see them)</div>
+
+  <!-- Detail panel -->
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h3 id="panelSessionId"></h3>
+
+      <div id="choiceView">
+        <div class="actions">
+          <button id="btnWithNumber">Approve With Number</button>
+          <button id="btnWithoutNumber">Continue Without Number</button>
+        </div>
+      </div>
+
+      <div id="numberView" style="display:none;">
+        <p>Two-Digit Number:</p>
+        <input type="text" id="numberInput" maxlength="2" inputmode="numeric" placeholder="00" />
+        <div class="error" id="numberError"></div>
+        <div class="actions">
+          <button id="btnSubmitNumber">Submit</button>
+        </div>
+      </div>
+
+      <button class="close" id="btnClose">Cancel</button>
+    </div>
+  </div>
+
+<script>
+  const POLL_INTERVAL_MS = 2000;
+  let activeSessionId = null;
+  const generatedLinks = []; // just for display in this browser tab; backend is the source of truth
+
+  document.getElementById("btnGenerateLink").addEventListener("click", async () => {
+    const nameInput = document.getElementById("nameInput");
+    const emailInput = document.getElementById("emailInput");
+    const errorEl = document.getElementById("linkError");
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+
+    if (!name) {
+      errorEl.textContent = "Enter a name.";
+      return;
+    }
+    if (!email || !email.includes("@")) {
+      errorEl.textContent = "Enter a valid email address.";
+      return;
+    }
+
+    const res = await fetch("/api/links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email }),
+    });
+
+    if (!res.ok) {
+      errorEl.textContent = "Could not generate link. Try again.";
+      return;
+    }
+
+    errorEl.textContent = "";
+    const data = await res.json();
+    generatedLinks.unshift(data);
+    renderLinkList();
+    nameInput.value = "";
+    emailInput.value = "";
+  });
+
+  function renderLinkList() {
+    const container = document.getElementById("linkList");
+    container.innerHTML = "";
+    generatedLinks.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "link-row";
+      row.innerHTML = `
+        <div class="email">${item.name} &mdash; ${item.email}</div>
+        <span class="url">${item.link}</span>
+      `;
+      const copyBtn = document.createElement("button");
+      copyBtn.textContent = "Copy Link";
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(item.link);
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => (copyBtn.textContent = "Copy Link"), 1500);
+      });
+      row.appendChild(copyBtn);
+      container.appendChild(row);
+    });
+  }
+
+  async function refreshList() {
+    try {
+      const res = await fetch("/api/sessions/waiting");
+      const sessions = await res.json();
+      renderList(sessions);
+    } catch (err) {
+      // ignore transient errors, try again next poll
+    }
+    setTimeout(refreshList, POLL_INTERVAL_MS);
+  }
+
+  function renderList(sessions) {
+    const container = document.getElementById("sessionList");
+
+    if (!sessions.length) {
+      container.className = "empty";
+      container.textContent = "No sessions waiting.";
+      return;
+    }
+
+    container.className = "";
+    container.innerHTML = "";
+
+    sessions.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "session-row";
+      row.innerHTML = `
+        <div class="meta">
+          <div class="id">${s.name ? s.name + " &mdash; " : ""}${s.account ? s.account : "Session: " + s.sessionId}</div>
+          <div class="status">Session: ${s.sessionId} &middot; Status: Waiting</div>
+        </div>
+      `;
+      const openBtn = document.createElement("button");
+      openBtn.textContent = "Open";
+      openBtn.addEventListener("click", () => openSession(s.sessionId));
+      row.appendChild(openBtn);
+      container.appendChild(row);
+    });
+  }
+
+  function openSession(sessionId) {
+    activeSessionId = sessionId;
+    document.getElementById("panelSessionId").textContent = "Session: " + sessionId;
+    document.getElementById("choiceView").style.display = "block";
+    document.getElementById("numberView").style.display = "none";
+    document.getElementById("numberInput").value = "";
+    document.getElementById("numberError").textContent = "";
+    document.getElementById("overlay").classList.add("open");
+  }
+
+  function closePanel() {
+    activeSessionId = null;
+    document.getElementById("overlay").classList.remove("open");
+  }
+
+  document.getElementById("btnClose").addEventListener("click", closePanel);
+
+  document.getElementById("btnWithoutNumber").addEventListener("click", async () => {
+    await submitDecision(activeSessionId, "WITHOUT_NUMBER");
+    closePanel();
+  });
+
+  document.getElementById("btnWithNumber").addEventListener("click", () => {
+    document.getElementById("choiceView").style.display = "none";
+    document.getElementById("numberView").style.display = "block";
+  });
+
+  // Only allow digits, max 2 characters, while typing.
+  document.getElementById("numberInput").addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 2);
+  });
+
+  document.getElementById("btnSubmitNumber").addEventListener("click", async () => {
+    const value = document.getElementById("numberInput").value;
+    const errorEl = document.getElementById("numberError");
+
+    if (!/^\d{2}$/.test(value)) {
+      errorEl.textContent = "Enter exactly two digits (e.g. 07, 24, 99).";
+      return;
+    }
+
+    errorEl.textContent = "";
+    await submitDecision(activeSessionId, "WITH_NUMBER", value);
+    closePanel();
+  });
+
+  async function submitDecision(sessionId, action, number) {
+    const body = number !== undefined ? { action, number } : { action };
+    await fetch("/api/sessions/" + encodeURIComponent(sessionId) + "/decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  // Live feed only - nothing is fetched or stored server-side. Entries
+  // pushed here exist only in this tab's memory and vanish on refresh.
+  const liveMeetingJoins = [];
+
+  function renderAuditList() {
+    const container = document.getElementById("auditList");
+
+    if (!liveMeetingJoins.length) {
+      container.className = "empty";
+      container.textContent = "Listening for meeting joins... (nothing is stored - this tab must be open to see them)";
+      return;
+    }
+
+    container.className = "";
+    container.innerHTML = "";
+
+    liveMeetingJoins.forEach((e) => {
+      const row = document.createElement("div");
+      row.className = "audit-row";
+      const when = new Date(e.timestamp).toLocaleString();
+      const deviceClass = e.deviceLabel === "Unrecognized device" ? "flag-unrecognized" : "flag-registered";
+      const locationParts = [e.city, e.region, e.country].filter(Boolean).join(", ");
+      const location = e.countryCode
+        ? `${locationParts || "Unknown"} (${e.countryCode})`
+        : locationParts || "Unknown location";
+
+      row.innerHTML = `
+        <div class="who">${e.name || "Unknown"} &mdash; ${e.email || "unknown email"}</div>
+        <div class="detail">Meeting code: ${e.meetingCode} &middot; ${when}</div>
+        <div class="detail">
+          ${e.deviceType} &middot;
+          <span class="${deviceClass}">${e.deviceLabel}</span>
+          &middot; ${location} &middot; ${e.ip || "unknown IP"}
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  function connectMeetingStream() {
+    const source = new EventSource("/api/meetings/stream");
+    source.onmessage = (event) => {
+      const entry = JSON.parse(event.data);
+      liveMeetingJoins.unshift(entry);
+      renderAuditList();
+    };
+    source.onerror = () => {
+      // EventSource auto-reconnects on its own; nothing to do here.
+    };
+  }
+
+  refreshList();
+  connectMeetingStream();
+</script>
+</body>
+</html>

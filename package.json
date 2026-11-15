@@ -1,0 +1,14 @@
+{
+  "name": "account-picker-backend",
+  "version": "1.0.0",
+  "description": "Minimal Express backend with in-memory sessions for the Admin Portal waiting-state flow.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^4.19.2",
+    "nodemailer": "^10.3.1"
+  }
+}

